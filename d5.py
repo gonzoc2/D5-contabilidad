@@ -579,7 +579,7 @@ else:
             worksheet.update([df_str.columns.values.tolist()] + df_str.values.tolist())
 
         # --- USO en tu app ---
-        json_file = r"C:\Users\gcortes\Desktop\pagina web esgari\entorno virtual app 2.0\myenv_bueno\base-de-datos-447317-3d2ab5d4bdf3.json"
+        json_file = dict(st.secrets["gcp_service_account"])
         spreadsheet_id = "1Vzw1lWuWaC0uvbqxh6JrNqu9UEnjHXywqwG9cDIowRk"
 
         if st.download_button(
@@ -597,6 +597,7 @@ else:
 
     else:
         st.sidebar.warning("Por favor, sube los archivo para continuar.")
+
 
 
 
