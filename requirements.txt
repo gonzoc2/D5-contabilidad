@@ -1,0 +1,9 @@
+streamlit
+pandas
+requests
+python-dateutil
+numpy-financial
+gspread
+oauth2client
+xlsxwriter
+openpyxl
