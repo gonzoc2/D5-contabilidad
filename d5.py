@@ -72,37 +72,86 @@ else:
     with col2:
         fecha_fin = st.date_input("📅 Fecha final", value=hoy)
 
-    # --- Funciones cacheadas ---
     @st.cache_data(show_spinner="⏳ Cargando reporte de Facturas UUID...")
     def get_rf(fecha_ini, fecha_fin):
         user = ff.Sesion(USER, PASS, SERVER)
-        params = [
-            {
-                'dataType': 'Date',
-                'name': 'P_FECHA_INI',
-                'dateFormatString': 'DD-MM-YYYY',
-                'values': fecha_ini.strftime('%m-%d-%Y'),
-                'multiValuesAllowed': False,
-                'refreshParamOnChange': False,
-                'selectAll': False,
-                'templateParam': False,
-                'useNullForAll': False
-            },
-            {
-                'dataType': 'Date',
-                'name': 'P_FECHA_FIN',
-                'dateFormatString': 'DD-MM-YYYY',
-                'values': fecha_fin.strftime('%m-%d-%Y'),
-                'multiValuesAllowed': False,
-                'refreshParamOnChange': False,
-                'selectAll': False,
-                'templateParam': False,
-                'useNullForAll': False
-            }
-        ]
         ruta = "/Custom/ESGARI/Qlik/ReportesFinanzas/XXRO_EXTRACTOR_GL_REP.xdo"
-        h = user.runReport(ruta, params=params)
-        return pd.read_csv(io.BytesIO(h.reportBytes))
+    
+        # Si el rango es mayor a 7 días, dividir en semanas
+        delta = (fecha_fin - fecha_ini).days
+        if delta > 7:
+            dfs = []
+            fecha_actual = fecha_ini
+            while fecha_actual <= fecha_fin:
+                sub_fin = min(fecha_actual + timedelta(days=6), fecha_fin)
+    
+                params = [
+                    {
+                        'dataType': 'Date',
+                        'name': 'P_FECHA_INI',
+                        'dateFormatString': 'DD-MM-YYYY',
+                        'values': fecha_actual.strftime('%m-%d-%Y'),
+                        'multiValuesAllowed': False,
+                        'refreshParamOnChange': False,
+                        'selectAll': False,
+                        'templateParam': False,
+                        'useNullForAll': False
+                    },
+                    {
+                        'dataType': 'Date',
+                        'name': 'P_FECHA_FIN',
+                        'dateFormatString': 'DD-MM-YYYY',
+                        'values': sub_fin.strftime('%m-%d-%Y'),
+                        'multiValuesAllowed': False,
+                        'refreshParamOnChange': False,
+                        'selectAll': False,
+                        'templateParam': False,
+                        'useNullForAll': False
+                    }
+                ]
+    
+                try:
+                    h = user.runReport(ruta, params=params)
+                    df_tmp = pd.read_csv(io.BytesIO(h.reportBytes))
+                    dfs.append(df_tmp)
+                except Exception as e:
+                    st.error(f"❌ Error en chunk {fecha_actual} a {sub_fin}: {e}")
+    
+                fecha_actual = sub_fin + timedelta(days=1)
+    
+            if dfs:
+                return pd.concat(dfs, ignore_index=True)
+            else:
+                return pd.DataFrame()
+        else:
+            # Rango corto: una sola llamada
+            params = [
+                {
+                    'dataType': 'Date',
+                    'name': 'P_FECHA_INI',
+                    'dateFormatString': 'DD-MM-YYYY',
+                    'values': fecha_ini.strftime('%m-%d-%Y'),
+                    'multiValuesAllowed': False,
+                    'refreshParamOnChange': False,
+                    'selectAll': False,
+                    'templateParam': False,
+                    'useNullForAll': False
+                },
+                {
+                    'dataType': 'Date',
+                    'name': 'P_FECHA_FIN',
+                    'dateFormatString': 'DD-MM-YYYY',
+                    'values': fecha_fin.strftime('%m-%d-%Y'),
+                    'multiValuesAllowed': False,
+                    'refreshParamOnChange': False,
+                    'selectAll': False,
+                    'templateParam': False,
+                    'useNullForAll': False
+                }
+            ]
+            h = user.runReport(ruta, params=params)
+            return pd.read_csv(io.BytesIO(h.reportBytes))
+
 
     rf = get_rf(fecha_ini, fecha_fin)
     rf = rf.fillna({'CREDIT': 0, 'DEBIT': 0})
@@ -596,6 +645,7 @@ else:
 
     else:
         st.sidebar.warning("Por favor, sube los archivo para continuar.")
+
 
 
 
